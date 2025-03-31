@@ -148,3 +148,64 @@ class HttpClient:
                 response_headers[key.strip()] = value.strip()
 
         return body, response_headers, status_code
+
+    def _should_redirect(self, follow_redirects, status_code, headers, max_redirects):
+        """Determine if a redirect should be followed"""
+        return (follow_redirects and
+                status_code in (301, 302, 303, 307, 308) and
+                "Location" in headers and
+                max_redirects > 0)
+
+    def _handle_redirect(self, parsed_url, headers, method, original_headers, data, follow_redirects, accept,
+                         max_redirects):
+        """Handle redirect."""
+        redirect_url = headers["Location"]
+        hostname = parsed_url.netloc
+
+        # Handle relative URLs
+        if not redirect_url.startswith(("http://", "https://")):
+            if redirect_url.startswith("/"):
+                redirect_url = f"{parsed_url.scheme}://{hostname}{redirect_url}"
+            else:
+                redirect_url = f"{parsed_url.scheme}://{hostname}/{redirect_url}"
+
+        print(f"Redirecting to: {redirect_url}")
+        return self.make_http_request(
+            redirect_url, method, original_headers, data,
+            follow_redirects, accept, max_redirects - 1
+        )
+
+    def _process_response(self, body, headers):
+        """Process and decode the response body"""
+
+        # Determine charset from Content-Type
+        content_type = headers.get("Content-Type", "")
+        charset = "utf-8"
+        if "charset=" in content_type:
+            charset = content_type.split("charset=")[1].split(";")[0].strip()
+        if "Content-Encoding" in headers:
+            body = self._decompress_body(body, headers["Content-Encoding"].lower())
+
+        try:
+            decoded_body = body.decode(charset, errors="replace")
+        except (UnicodeDecodeError, LookupError):
+            decoded_body = body.decode("utf-8", errors="replace")
+
+        return decoded_body
+
+    def _decompress_body(self, body, encoding):
+        """Decompress the response body if it's compressed"""
+        if encoding == "gzip":
+            try:
+                return gzip.decompress(body)
+            except OSError:
+                print("Error: Not a gzipped file")
+                return body
+        elif encoding == "deflate":
+            try:
+                return zlib.decompress(body)
+            except zlib.error:
+                print("Error: Not a deflated file")
+                return body
+
+        return body
