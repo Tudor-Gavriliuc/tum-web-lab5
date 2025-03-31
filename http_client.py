@@ -61,3 +61,45 @@ class HttpClient:
             self.cache.set(url, response, headers, content_type)
         else:
             self.cache.set(url, response, headers)
+
+    def _parse_url(self, url):
+        """Parse url into its components."""
+        parsed_url = urlparse(url)
+        if not parsed_url.path:
+            parsed_url = parsed_url._replace(path="/")
+        return parsed_url
+
+    def _prepare_headers(self, parsed_url, headers=None, accept=None):
+        """Prepare the HTTP headers for the request"""
+        if headers is None:
+            headers = {}
+
+        hostname = parsed_url.netloc
+        headers["Host"] = hostname.split(":")[0]
+        headers[
+            "User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+        headers["Connection"] = "close"
+        if accept:
+            headers["Accept"] = accept
+        return headers
+
+    def _build_request(self, method, parsed_url, headers, data=None):
+        """Build http request."""
+        path = parsed_url.path
+        if parsed_url.query:
+            path += "?" + parsed_url.query
+
+        request = f"{method} {path} HTTP/1.1\r\n"
+
+        for key, value in headers.items():
+            request += f"{key}: {value}\r\n"
+
+        if data:
+            request += f"Content-Length: {len(data)}\r\n"
+
+        request += "\r\n"
+
+        if data:
+            request += data
+
+        return request
