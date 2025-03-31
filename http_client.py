@@ -103,3 +103,48 @@ class HttpClient:
             request += data
 
         return request
+
+    def _create_socket(self, parsed_url):
+        """Create a socket connection."""
+        hostname = parsed_url.netloc.split(":")[0]
+        port = parsed_url.port if parsed_url.port else 80 if parsed_url.scheme == "http" else 443
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        if parsed_url.scheme == "https":
+            context = ssl.create_default_context()
+            s = context.wrap_socket(s, server_hostname=hostname)
+
+        s.connect((hostname, port))
+        return s
+
+    def _send_request(self, parsed_url, request_data):
+        """Send the HTTP request and receive the response"""
+        s = self._create_socket(parsed_url)
+        s.sendall(request_data.encode())
+
+        response = b""
+        while True:
+            data = s.recv(4096)
+            if not data:
+                break
+            response += data
+
+        s.close()
+
+        # Parse response into headers and body
+        header_end = response.find(b"\r\n\r\n")
+        headers_raw = response[:header_end].decode("utf-8", errors="ignore")
+        body = response[header_end + 4:]
+
+        # Extract status code and headers
+        status_line = headers_raw.split("\r\n")[0]
+        status_code = int(status_line.split(" ")[1])
+        response_headers = {}
+
+        for header_line in headers_raw.split("\r\n")[1:]:
+            if ":" in header_line:
+                key, value = header_line.split(":", 1)
+                response_headers[key.strip()] = value.strip()
+
+        return body, response_headers, status_code
