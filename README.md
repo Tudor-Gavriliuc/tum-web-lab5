@@ -83,7 +83,7 @@ python go2web.py -u https://myanimelist.fandom.com/wiki/MyAnimeList_Wiki --json
 
 - `go2web.py`: Main application
 - `http_client.py`: Handles HTTP requests with caching
-- `SetFormat.py`: Formats HTML and JSON content
+- `SetStructure.py`: Formats HTML and JSON content
 - `find.py`: Performs web searches via DuckDuckGo
 - `cache.py`: Manages response caching
 
