@@ -4,7 +4,7 @@ import ssl
 import gzip
 import zlib
 
-from src.cache import Cache
+from cache import Cache
 
 
 class HttpClient:
@@ -38,3 +38,26 @@ class HttpClient:
 
         except Exception as e:
             return f"Error occurred: {str(e)}", {}
+
+    def _check_cache(self, url, method, accept):
+        """Check if a cached response exists and return it if valid"""
+        if method != "GET":
+            return None
+
+        if accept:
+            cached_response, cached_headers = self.cache.get(url, accept)
+        else:
+            cached_response, cached_headers = self.cache.get(url)
+
+        if cached_response:
+            print("Using cached response")
+            return cached_response, cached_headers
+
+        return None
+
+    def _cache_response(self, url, response, headers, content_type=None):
+        """Cache the response if it's a GET request"""
+        if content_type:
+            self.cache.set(url, response, headers, content_type)
+        else:
+            self.cache.set(url, response, headers)
